@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Multi-Step Fibo Quiz</title>
+  <style>
+    body { background: #fff; }
+    #answer-box {
+      display: block;
+      margin: 40px auto 0 auto;
+      width: 280px;
+      padding: 15px;
+      border: 2px dashed #3480d4;
+      background: #f3faff;
+      text-align: center;
+      border-radius: 10px;
+      font-size: 16px;
+    }
+    #answer-box .result { font-weight: bold; font-size: 16px; margin-top:12px; }
+    #checkAnswerBtn[disabled], #removeBtn[disabled] { opacity:0.4; cursor:not-allowed; }
+    #removeBox, #inputBox { margin-top:15px; }
+    #fibIndex, #textAnswer { width:100px; font-size:14px; }
+  </style>
+</head>
+<body>
+<div style="position:relative; width:1355px; height:786px; margin:auto; margin-top:40px;">
+  <img id="quizImage" src="quiz1.png" style="position:absolute;top:0;left:0;width:1355px;height:786px;z-index:1;">
+  <canvas id="quiz1canvas" width="1355" height="786"
+    style="position:absolute;top:0;left:0;width:1355px;height:786px;z-index:2; background:rgba(255, 255, 255, 0.05); border:2px solid red; cursor:crosshair;"></canvas>
+</div>
+<div id="answer-box">
+  <div id="question"></div>
+  <button id="checkAnswerBtn" disabled>ส่งคำตอบ</button>
+  <div id="inputBox" style="display:none;">
+    คำตอบของคุณ: <input type="text" id="textAnswer">
+    <button id="submitTextBtn">ส่งคำตอบ</button>
+  </div>
+  <div style="text-align:center; margin-top:20px;">
+    <button onclick="overrideImage=null; showStep();">กลับภาพคำถาม</button>
+    <button onclick="switchImageFromStep('tf4h')">ดู TF 4 ชม</button>
+    <button onclick="switchImageFromStep('tfday')">ดู TF Day</button>
+  </div>
+  <div id="removeBox" style="display:none;">
+    เลขฟิโบที่ต้องการลบ: <input type="number" min="1" id="fibIndex">
+    <button id="removeBtn">ลบฟิโบนี้</button>
+  </div>
+  <div class="result"></div>
+</div>
+<script>
+function drawAllVerticalLines() {
+  lines.forEach(line => {
+    if (line.vertical) drawVertical(line.x, false);  // ✅ ใส่ false ชัดเจน
+  });
+}
+
+function redrawAll() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const isAltView = overrideImage !== null;
+
+  if (!isAltView) {
+    lines.forEach((line, i) => {
+      if (!line.vertical) drawFiboLine(line, i);
+    });
+
+    if (tempLine) drawFiboLine(tempLine, lines.length);
+  }
+
+  // ✅ วาดเส้นแนวตั้งที่ตอบถูกไว้ก่อนหน้านี้
+  drawAllVerticalLines(); 
+
+  if (tempX != null && steps[currentStep].type === "vertical") drawVertical(tempX, true);
+  drawCrosshair();
+}
+
+
+const steps = [
+  {
+    type: "input",
+    question: "1. จากภาพที่เห็นทั้ง 3 TF เราควรจะวางแผนเทรดฝั่งไหน(1.ฝั่งBUY 2.ฝั่งSELL ตอบแค่1หรือ2)",
+    correctAnswer: "1",
+    image: "quiz1.png",
+    altImages: {
+      tf4h: "h4quiz1.png",
+      tfday: "dayquiz1.png"
+    }
+  },
+    {
+    type: "input",
+    question: "2. หากอยากจะเล่นฝั่ง BUY เพื่อเอา 240ขึ้น1รอบ ควรวางหน้าเทรดแบบไหน 1.เข้าได้เลย 2.มีททกต (ตอบแค่1หรือ2)",
+    correctAnswer: "2",
+    image: "quiz1.png",
+    altImages: {
+      tf4h: "h4quiz1.png",
+      tfday: "dayquiz1.png"
+    }
+  },
+  {
+    type: "draw",
+    question: "3. จงลากฟิโบฟอร์มขึ้นสมบูรณ์แบบ Conservative TF60",
+    drawType: "up",
+    answer: {x1: 71, y1: 270, x2: 117, y2: 388},
+    image: "quiz2.png",
+    altImages: {
+      tf4h: "h4quiz2.png",
+      tfday: "dayquiz2.png"
+    }
+  },
+    {
+    type: "draw",
+    question: "4. จงลากฟิโบฟอร์มขึ้นสมบูรณ์แบบประยุกต์ TF60",
+    drawType: "up",
+    answer: {x1: 137, y1: 276, x2: 218, y2: 327},
+    image: "quiz2.png",
+    altImages: {
+      tf4h: "h4quiz2.png",
+      tfday: "dayquiz2.png"
+    }
+  },
+      {
+    type: "input",
+    question: "5. หากท่านได้ไม้ชุดฟอร์มสมบูรณ์ขาขึ้นต้นรอบมา เป้าแรกที่ควรTPควรเป็นแนวไหน (ตอบเป็นเลขเช่น161.8)",
+    correctAnswer: "261.8",
+    image: "quiz2.png",
+    altImages: {
+      tf4h: "h4quiz2.png",
+      tfday: "dayquiz2.png"
+    }
+  },
+  {
+    type: "input",
+    question: "6. เมื่อตั้งเป้าว่าจะ TPที่แนว 261.8 แล้วควรเป็น 261.8 ของ ฟิโบชุดที่ 1 หรือ 2 (1.ชุดที่1เพราะมีแนวคลัสเตอร์กับสทรของฟิโบชุดที่2 2. ชุดที่2เพราะป๊อดไม่กล้าถือ)ตอบ1หรือ2",
+    correctAnswer: "1",
+    image: "quiz2.png",
+    altImages: {
+      tf4h: "h4quiz2.png",
+      tfday: "dayquiz2.png"
+    }
+  },
+      {
+    type: "draw",
+    question: "7. จงลากฟิโบภูเขาลูกหลังให้ถูกต้อง TF60",
+    drawType: "up",
+    answer: {x1: 332, y1: 167, x2: 371, y2: 242},
+    image: "quiz3.png",
+    altImages: {
+      tf4h: "h4quiz3.png",
+      tfday: "dayquiz3.png"
+    }
+  },
+        {
+    type: "vertical",
+    question: "8. จงตัดภูเขาเมื่อภูเขาลูกหลังปิดไม่เกิน161.8 RSIจบรอบและ STO ลงมาOVS",
+    answerX: 434,
+    image: "quiz4.png",
+    altImages: {
+      tf4h: "h4quiz4.png",
+      tfday: "dayquiz4.png"
+    }
+  },
+    {
+    question: "9. กรุณาลบฟิโบที่หักคอปิดไม่เกิน161.8และตัดภูเขาแล้ว  ",
+    type: "remove",
+    removeIndex: 2,
+      image: "quiz4.png",
+    altImages: {
+      tf4h: "h4quiz4.png",
+      tfday: "dayquiz4.png"
+    }
+  },
+  {
+    type: "input",
+    question: "10. จากภาพล่าสุดเมื่อตัดภูเขาแล้วสามารถมองแผน SELL ได้หรือไม่โปรดดู TFใหญ่กว่าประกอบ(ตอบได้/ไม่ได้)",
+    correctAnswer: "ได้",
+    image: "quiz4.png",
+    altImages: {
+      tf4h: "h4quiz4.png",
+      tfday: "dayquiz4.png"
+    }
+    },
+      {
+    type: "input",
+    question: "11. หากมองแผนSELLควรรออะไรบ้าง 1.240 มีททกต 2. 60ไม่ผ่านไฮมีททกต 3.ได้ทั้ง2ข้อ (ตอบเป็นตัวเลข) ",
+    correctAnswer: "3",
+    image: "quiz4.png",
+    altImages: {
+      tf4h: "h4quiz4.png",
+      tfday: "dayquiz4.png"
+    }
+    },
+          {
+    type: "draw",
+    question: "12. จงลากฟิโบขาลงสมบูรณ์ให้ถูกต้อง TF60",
+    drawType: "down",
+    answer: {x1: 473, y1: 191, x2: 545, y2: 160},
+    image: "quiz5.png",
+    altImages: {
+      tf4h: "h4quiz5.png",
+      tfday: "dayquiz5.png"
+    }
+  },
+  {
+    type: "input",
+    question: "13. จากภาพล่าหัวลงสมบูรณ์สามารถคาดหวังเป้าได้อย่างน้อยที่เท่าไหร่ (ตอบเป็นตัวเลขเช่น 161.8)",
+    correctAnswer: "261.8",
+    image: "quiz5.png",
+    altImages: {
+      tf4h: "h4quiz5.png",
+      tfday: "dayquiz5.png"
+    }
+    },
+          {
+    type: "draw",
+    question: "14. จงลากฟิโบขาลงภูเขาลูกหลังให้ถูกต้อง TF60",
+    drawType: "down",
+    answer: {x1: 541, y1: 236, x2: 604, y2: 189},
+    image: "quiz6.png",
+    altImages: {
+      tf4h: "h4quiz6.png",
+      tfday: "dayquiz6.png"
+    }
+  },
+    {
+    type: "input",
+    question: "15. จากหัวภูเขาลูกหลังถ้าหากเราได้ออเดอร์ลูกนี้โดยส่วนมากจะไปที่เป้าเท่าไหร่ (ตอบเป็นตัวเลขเช่น 161.8)",
+    correctAnswer: "200",
+    image: "quiz6.png",
+    altImages: {
+      tf4h: "h4quiz6.png",
+      tfday: "dayquiz6.png"
+    }
+    },
+     {
+    type: "draw",
+    question: "16. จงลากฟิโบฟอร์มขึ้นแบบหักคอ TF60",
+    drawType: "up",
+    answer: {x1: 598, y1: 187, x2: 648, y2: 277},
+    image: "quiz7.png",
+    altImages: {
+      tf4h: "h4quiz6.png",
+      tfday: "dayquiz6.png"
+    }
+  },
+      {
+    type: "vertical",
+    question: "17. จงตัดภูเขาเมื่อฟิโบขาลงถูกทำลายและ RSI จบรอบ ",
+    answerX: 633,
+    image: "quiz7.png",
+    altImages: {
+      tf4h: "h4quiz6.png",
+      tfday: "dayquiz6.png"
+    }
+  },
+        {
+    question: "18. กรุณาลบฟิโบที่ถูกทำลาย  ",
+    type: "remove",
+    removeIndex: 4,
+      image: "quiz7.png",
+    altImages: {
+      tf4h: "h4quiz6.png",
+      tfday: "dayquiz6.png"
+    }
+  },
+      {
+    question: "19. กรุณาลบฟิโบที่หักคอปิดไม่เกิน161.8และตัดภูเขาแล้ว  ",
+    type: "remove",
+    removeIndex: 4,
+      image: "quiz8.png",
+    altImages: {
+      tf4h: "h4quiz8.png",
+      tfday: "dayquiz8.png"
+    }
+  },
+     {
+    type: "draw",
+    question: "20. จงลากฟิโบฟอร์มขึ้นหลังจากตัดภูเขา TF60",
+    drawType: "up",
+    answer: {x1: 675, y1: 184, x2: 736, y2: 250},
+    image: "quiz8.png",
+    altImages: {
+      tf4h: "h4quiz8.png",
+      tfday: "dayquiz8.png"
+    }
+  },
+  {
+    type: "input",
+    question: "21. จากฟิโบชุดล่าสุดนี้เป็นชุดต้นรอบหรือภูเขาลูกหลัง ",
+    correctAnswer: "ภูเขาลูกหลัง",
+    image: "quiz8.png",
+    altImages: {
+      tf4h: "h4quiz8.png",
+      tfday: "dayquiz8.png"
+    }
+    },
+      {
+    type: "input",
+    question: "22. หากเราได้ออเดอร์ที่ฟิโบชุดนี้เราจะไป TP ที่บริเวณโซนไหน 1.261.8ของ ภูเขาลูกหลัง 2. 200 ของภูเขาลูกหลัง (ตอบเป็นตัวเลข) ",
+    correctAnswer: "200",
+    image: "quiz8.png",
+    altImages: {
+      tf4h: "h4quiz8.png",
+      tfday: "dayquiz8.png"
+    }
+    },
+          {
+    type: "input",
+    question: "23. ทำไมถึง TP ที่ 200 ของภูเขาลูกหลัง ? 1.เพราะส่วนมากภขลลจะจบที่200 2.เพราะมีเป้าฟิโบแบบประยุกต์สุดทางรักคลัสเตอร์อยู่ 3.เพราะมีแนว 261.8 ของชุดต้นรอบอยู่ 4.ถูกทุกข้อ ",
+    correctAnswer: "4",
+    image: "quiz8.png",
+    altImages: {
+      tf4h: "h4quiz8.png",
+      tfday: "dayquiz8.png"
+    }
+    },
+       {
+    type: "input",
+    question: "24. ยินดีด้วยคุณตอบถูกหมดทุกข้อแล้วDEVขอพักก่อนนะครับ แต่ถ้าพิมว่า แอดเมากาวหล่อที่สุด ผมจะมีแรงทำงานต่อเลยครับ :) ",
+    correctAnswer: "แอดเมากาวหล่อที่สุด",
+    image: "quiz9.png",
+    altImages: {
+      tf4h: "h4quiz8.png",
+      tfday: "dayquiz8.png"
+    }
+    },
+];
+
+let currentStep = 0;
+let lines = [], tempLine = null, tempX = null;
+let crossX = null, crossY = null;
+let isDrawing = false, startX = 0, startY = 0, endX = 0, endY = 0, isFinishedDraw = false;
+let overrideImage = null;
+
+const canvas = document.getElementById('quiz1canvas');
+const ctx = canvas.getContext('2d');
+const questionDiv = document.getElementById('question');
+const checkBtn = document.getElementById('checkAnswerBtn');
+const resultDiv = document.querySelector('.result');
+const removeBox = document.getElementById('removeBox');
+const removeBtn = document.getElementById('removeBtn');
+const fibIndexInput = document.getElementById('fibIndex');
+const inputBox = document.getElementById('inputBox');
+const textAnswer = document.getElementById('textAnswer');
+const submitTextBtn = document.getElementById('submitTextBtn');
+const quizImage = document.getElementById('quizImage');
+
+function switchImageFromStep(tfKey) {
+  const step = steps[currentStep];
+  if (step.altImages && step.altImages[tfKey]) {
+    overrideImage = step.altImages[tfKey];
+    quizImage.src = overrideImage;
+    redrawAll(); // ✅ เพิ่มตรงนี้เพื่อให้ซ่อนฟิโบทันที
+  } else {
+    alert("ไม่มีภาพ TF นี้ในคำถามนี้");
+  }
+}
+
+
+function showStep() {
+  const step = steps[currentStep];
+  if (overrideImage) quizImage.src = overrideImage;
+  else if (step.image) quizImage.src = step.image;
+
+  questionDiv.textContent = step.question || "";
+  resultDiv.textContent = "";
+
+  checkBtn.style.display = step.type === "remove" || step.type === "input" ? "none" : "inline-block";
+  removeBox.style.display = step.type === "remove" ? "inline-block" : "none";
+  inputBox.style.display = step.type === "input" ? "block" : "none";
+  checkBtn.disabled = true;
+
+  tempLine = null;
+  if (step.type !== "vertical") tempX = null;  // ❗ล้างเฉพาะถ้าไม่ใช่แนวตั้ง
+  isFinishedDraw = false;
+  redrawAll();
+}
+
+submitTextBtn.onclick = function() {
+  const userAnswer = textAnswer.value.trim();
+  const correct = steps[currentStep].correctAnswer.trim();
+  if (userAnswer.toLowerCase() === correct.toLowerCase()) {
+    resultDiv.innerHTML = `<span style="color:#237b13;">ถูกต้อง! กรุณาทำขั้นตอนต่อไป</span>`;
+    currentStep++;
+    if (currentStep < steps.length) showStep();
+    else questionDiv.textContent = "จบทุกข้อแล้ว!";
+  } else {
+    resultDiv.innerHTML = `<span style="color:#c00;">ยังไม่ถูกต้อง ลองตอบใหม่</span>`;
+  }
+};
+
+function redrawAll() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const isAltView = overrideImage !== null;
+
+  if (!isAltView) {
+    lines.forEach((line, i) => {
+      if (!line.vertical) drawFiboLine(line, i);
+    });
+
+    if (tempLine) drawFiboLine(tempLine, lines.length);
+  }
+
+  drawAllVerticalLines(); // ✅ ใส่ตรงนี้ครับ
+
+  if (tempX != null && steps[currentStep].type === "vertical") drawVertical(tempX, true);
+  drawCrosshair();
+}
+
+
+
+function drawFiboLine(line, idx) {
+  const fibo_levels = [0, 1, 1.272, 1.618, 2, 2.618, 4.236];
+  let {x1, y1, x2, y2, type, color} = line;
+  fibo_levels.forEach(level => {
+    const y = type === "down" ? y2 + (y1 - y2) * level : y2 - (y2 - y1) * level;
+    ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x2, y);
+    ctx.strokeStyle = color; ctx.setLineDash([7, 5]); ctx.stroke(); ctx.setLineDash([]);
+    ctx.font = "15px Arial"; ctx.fillStyle = "#CC00FF";
+    ctx.fillText((level * 100).toFixed(1) + "%", x2 + 12, y - 6);
+  });
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+  ctx.strokeStyle = color; ctx.lineWidth = 1.8; ctx.setLineDash([]); ctx.stroke();
+  ctx.font = "bold 30px Arial"; ctx.fillStyle = "#000";
+  ctx.fillText(idx + 1, (x1 + x2) / 2, (y1 + y2) / 2);
+}
+
+function drawVertical(x, temp=false) {
+  ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height);
+  ctx.strokeStyle = temp ? "#8000ff" : "#8000ff";
+  ctx.setLineDash([14, 9]); ctx.stroke(); ctx.setLineDash([]);
+  if (!temp) {
+    ctx.font = "bold 30px Arial"; ctx.fillStyle = "#8000ff";
+    ctx.fillText("V", x + 7, 35);
+  }
+}
+
+function drawCrosshair() {
+  if (crossX != null && crossY != null) {
+    ctx.save(); ctx.setLineDash([4, 8]);
+    ctx.strokeStyle = "#aaa"; ctx.lineWidth = 1.25;
+    ctx.beginPath(); ctx.moveTo(crossX, 0); ctx.lineTo(crossX, canvas.height); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, crossY); ctx.lineTo(canvas.width, crossY); ctx.stroke();
+    ctx.setLineDash([]); ctx.restore();
+  }
+}
+
+canvas.addEventListener('mouseleave', () => { crossX = null; crossY = null; redrawAll(); });
+canvas.addEventListener('mousedown', e => {
+  if (steps[currentStep].type !== "draw") return;
+  const rect = canvas.getBoundingClientRect();
+  startX = e.clientX - rect.left;
+  startY = e.clientY - rect.top;
+  isDrawing = true; checkBtn.disabled = true;
+  tempLine = null; redrawAll();
+});
+canvas.addEventListener('mouseup', e => {
+  if (!isDrawing || steps[currentStep].type !== "draw") return;
+  isDrawing = false;
+  const rect = canvas.getBoundingClientRect();
+  endX = e.clientX - rect.left;
+  endY = e.clientY - rect.top;
+  console.log(`DRAW → x1: ${Math.round(startX)}, y1: ${Math.round(startY)}, x2: ${Math.round(endX)}, y2: ${Math.round(endY)}`);
+  tempLine = {
+    x1: startX, y1: startY, x2: endX, y2: endY,
+    type: steps[currentStep].drawType,
+    color: steps[currentStep].drawType === "down" ? "red" : "green"
+  };
+  isFinishedDraw = true;
+  checkBtn.disabled = false;
+  redrawAll();
+});
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  crossX = e.clientX - rect.left;
+  crossY = e.clientY - rect.top;
+  if (isDrawing && steps[currentStep].type === "draw") {
+    endX = crossX;
+    endY = crossY;
+    tempLine = {
+      x1: startX, y1: startY, x2: endX, y2: endY,
+      type: steps[currentStep].drawType,
+      color: steps[currentStep].drawType === "down" ? "red" : "green"
+    };
+  }
+  redrawAll();
+});
+canvas.addEventListener('click', e => {
+  if (steps[currentStep].type !== "vertical") return;
+  const rect = canvas.getBoundingClientRect();
+  tempX = e.clientX - rect.left;
+  isFinishedDraw = true;
+  checkBtn.disabled = false;
+  resultDiv.textContent = "";
+
+  // ✅ log พิกัดแนวตั้ง
+  console.log(`🟪 VERTICAL LINE CLICKED at X: ${Math.round(tempX)}`);
+
+  redrawAll();
+});
+
+
+checkBtn.onclick = function() {
+  const step = steps[currentStep];
+  if (step.type === "vertical") {
+    if (Math.abs(tempX - step.answerX) < 20) {
+      lines.push({ vertical: true, x: tempX, color: "#8000ff" }); // ✅ Fix แล้ว
+      tempX = null;
+      resultDiv.innerHTML = `<span style='color:#237b13;'>ถูกต้อง! ไปข้อต่อไป</span>`;
+      currentStep++;
+      if (currentStep < steps.length) showStep();
+      else questionDiv.textContent = "จบทุกข้อแล้ว!";
+    } else {
+      resultDiv.innerHTML = `<span style='color:#c00;'>ยังไม่ถูกต้อง ลองใหม่</span>`;
+    }
+    return;
+}
+  if (!isFinishedDraw || !tempLine) return;
+  const answer = step.answer;
+  if (Math.abs(tempLine.y1 - answer.y1) < 10 && Math.abs(tempLine.y2 - answer.y2) < 10) {
+    lines.push(tempLine); tempLine = null;
+    resultDiv.innerHTML = `<span style='color:#237b13;'>ถูกต้อง! ไปข้อต่อไป</span>`;
+    currentStep++;
+    if (currentStep < steps.length) showStep();
+    else questionDiv.textContent = "จบทุกข้อแล้ว!";
+  } else {
+    resultDiv.innerHTML = `<span style='color:#c00;'>ยังไม่ถูกต้อง ลองใหม่</span>`;
+  }
+};
+
+removeBtn.onclick = function() {
+  const idx = parseInt(fibIndexInput.value, 10) - 1;
+  const correctIdx = steps[currentStep].removeIndex;
+  if (idx === correctIdx) {
+    lines.splice(idx, 1);
+    resultDiv.innerHTML = `<span style='color:#237b13;'>ลบถูกต้อง</span>`;
+    currentStep++;
+    showStep();
+  } else {
+    resultDiv.innerHTML = `<span style='color:#c00;'>ลบผิดเส้น</span>`;
+  }
+};
+
+showStep();
+</script>
+</body>
+</html>
